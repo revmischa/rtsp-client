@@ -1,4 +1,4 @@
-package RTSP::Client;
+package AnyEvent::RTSP;
 
 use Moose;
 use RTSP::Lite;
@@ -8,12 +8,12 @@ our $VERSION = '0.3';
 
 =head1 NAME
 
-RTSP::Client - High-level client for the Real-Time Streaming Protocol
+AnyEvent::RTSP - High-level client for the Real-Time Streaming Protocol
 
 =head1 SYNOPSIS
 
-  use RTSP::Client;
-  my $client = new RTSP::Client(
+  use AnyEvent::RTSP;
+  my $client = new AnyEvent::RTSP(
       port               => 554,
       client_port_range  => '6970-6971',
       transport_protocol => 'RTP/AVP;unicast',
@@ -22,7 +22,7 @@ RTSP::Client - High-level client for the Real-Time Streaming Protocol
   );
   
   # OR
-  my $client = RTSP::Client->new_from_uri(uri => 'rtsp://10.0.1.105:554/mpeg4/media.amp');
+  my $client = AnyEvent::RTSP->new_from_uri(uri => 'rtsp://10.0.1.105:554/mpeg4/media.amp');
 
   $client->open or die $!;
   
@@ -41,14 +41,18 @@ RTSP::Client - High-level client for the Real-Time Streaming Protocol
   
 =head1 DESCRIPTION
 
-This module provides a high-level interface for communicating with an RTSP server.
-RTSP is a protocol for controlling streaming applications, it is not a media transport or a codec. 
-It supports describing media streams and controlling playback, and that's about it.
+This module provides a high-level interface for communicating with an
+RTSP server.  RTSP is a protocol for controlling streaming
+applications, it is not a media transport or a codec.  It supports
+describing media streams and controlling playback, and that's about
+it.
 
-In typical usage, you will open a connection to an RTSP server and send it the PLAY method. The server
-will then stream the media at you on the client port range using the specified transport protocol.
-You are responsible for listening on the client port range and handling the actual media data yourself,
-actually receiving a media stream or decoding it is beyond the scope of RTSP and this module.
+In typical usage, you will open a connection to an RTSP server and
+send it the PLAY method. The server will then stream the media at you
+on the client port range using the specified transport protocol.  You
+are responsible for listening on the client port range and handling
+the actual media data yourself, actually receiving a media stream or
+decoding it is beyond the scope of RTSP and this module.
 
 =head2 EXPORT
 
@@ -60,7 +64,8 @@ No namespace pollution here!
 
 =item session_id
 
-RTSP session id. It will be set on a successful OPEN request and added to each subsequent request
+RTSP session id. It will be set on a successful OPEN request and added
+to each subsequent request
 
 =cut
 has session_id => (
@@ -70,7 +75,8 @@ has session_id => (
 
 =item client_port_range
 
-Ports the client receives data on. Listening and receiving data is not handled by RTSP::Client
+Ports the client receives data on. Listening and receiving data is not
+handled by AnyEvent::RTSP
 
 =cut
 has client_port_range => (
@@ -187,7 +193,8 @@ sub _request_uri {
 
 =item open
 
-This method opens a connection to the RTSP server. Returns true on success, false with $! possibly set on failure.
+This method opens a connection to the RTSP server. Returns true on
+success, false with $! possibly set on failure.
 
 =cut
 sub open {
@@ -202,7 +209,15 @@ sub open {
 
 =item setup
 
-A SETUP request specifies how a single media stream must be transported. This must be done before a PLAY request is sent. The request contains the media stream URL and a transport specifier. This specifier typically includes a local port for receiving RTP data (audio or video), and another for RTCP data (meta information). The server reply usually confirms the chosen parameters, and fills in the missing parts, such as the server's chosen ports. Each media stream must be configured using SETUP before an aggregate play request may be sent.
+A SETUP request specifies how a single media stream must be
+transported. This must be done before a PLAY request is sent. The
+request contains the media stream URL and a transport specifier. This
+specifier typically includes a local port for receiving RTP data
+(audio or video), and another for RTCP data (meta information). The
+server reply usually confirms the chosen parameters, and fills in the
+missing parts, such as the server's chosen ports. Each media stream
+must be configured using SETUP before an aggregate play request may be
+sent.
 
 =cut
 sub setup {
@@ -246,20 +261,21 @@ sub add_session_header {
 
 Takes same opts as new() and adds additional param: uri
 
-e.g. C<my $rtsp_client = RTSP::Client-E<gt>new_from_uri(uri =E<gt> 'rtsp://10.0.1.105:554/mpeg4/media.amp', debug =E<gt> 1);>
+e.g. C<my $rtsp_client = AnyEvent::RTSP-E<gt>new_from_uri(uri =E<gt>
+'rtsp://10.0.1.105:554/mpeg4/media.amp', debug =E<gt> 1);>
 
 =cut
 sub new_from_uri {
     my ($class, %opts) = @_;
     
     my $uri = delete $opts{uri}
-        or croak "No URI passed to RTSP::Client::new_from_uri()";
+        or croak "No URI passed to AnyEvent::RTSP::new_from_uri()";
     
     # todo: parse auth
     my ($host, $port, $media_path) = $uri =~ m!^rtsp://([-\w.]+):?(\d+)?(/.+)?$!ism;
 
     unless ($host) {
-        croak "Invalid RTSP URI '$uri' passed to RTSP::Client::new_from_uri()";
+        croak "Invalid RTSP URI '$uri' passed to AnyEvent::RTSP::new_from_uri()";
     }
     
     $opts{address} ||= $host;
@@ -271,7 +287,13 @@ sub new_from_uri {
 
 =item play
 
-A PLAY request will cause one or all media streams to be played. Play requests can be stacked by sending multiple PLAY requests. The URL may be the aggregate URL (to play all media streams), or a single media stream URL (to play only that stream). A range can be specified. If no range is specified, the stream is played from the beginning and plays to the end, or, if the stream is paused, it is resumed at the point it was paused.
+A PLAY request will cause one or all media streams to be played. Play
+requests can be stacked by sending multiple PLAY requests. The URL may
+be the aggregate URL (to play all media streams), or a single media
+stream URL (to play only that stream). A range can be specified. If no
+range is specified, the stream is played from the beginning and plays
+to the end, or, if the stream is paused, it is resumed at the point it
+was paused.
 
 =cut
 sub play {
@@ -282,7 +304,9 @@ sub play {
 
 =item pause
 
-A PAUSE request temporarily halts one or all media streams, so it can later be resumed with a PLAY request. The request contains an aggregate or media stream URL.
+A PAUSE request temporarily halts one or all media streams, so it can
+later be resumed with a PLAY request. The request contains an
+aggregate or media stream URL.
 
 =cut
 sub pause {
@@ -293,7 +317,8 @@ sub pause {
 
 =item record
 
-The RECORD request can be used to send a stream to the server for storage.
+The RECORD request can be used to send a stream to the server for
+storage.
 
 =cut
 sub record {
@@ -304,7 +329,8 @@ sub record {
 
 =item teardown
 
-A TEARDOWN request is used to terminate the session. It stops all media streams and frees all session related data on the server.
+A TEARDOWN request is used to terminate the session. It stops all
+media streams and frees all session related data on the server.
 
 =cut
 sub teardown {
@@ -336,7 +362,11 @@ sub options_public {
 
 =item describe
 
-The reply to a DESCRIBE request includes the presentation description, typically in Session Description Protocol (SDP) format. Among other things, the presentation description lists the media streams controlled with the aggregate URL. In the typical case, there is one media stream each for audio and video.
+The reply to a DESCRIBE request includes the presentation description,
+typically in Session Description Protocol (SDP) format. Among other
+things, the presentation description lists the media streams
+controlled with the aggregate URL. In the typical case, there is one
+media stream each for audio and video.
 
 This method returns the actual DESCRIBE content, as SDP data
 
@@ -349,7 +379,8 @@ sub describe {
 
 =item request($method)
 
-Sends a $method request, returns true on success, false with $! possibly set on failure
+Sends a $method request, returns true on success, false with $!
+possibly set on failure
 
 =cut
 sub request {
@@ -398,7 +429,8 @@ sub DEMOLISH {
 
 =item reset
 
-If you wish to reuse the client for multiple requests, you should call reset after each request unless you want to keep the socket open.
+If you wish to reuse the client for multiple requests, you should call
+reset after each request unless you want to keep the socket open.
 
 =cut
 sub reset {
