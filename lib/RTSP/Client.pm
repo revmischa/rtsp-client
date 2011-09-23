@@ -4,7 +4,7 @@ use Moose;
 use RTSP::Lite;
 use Carp qw/croak/;
 
-our $VERSION = '0.3';
+our $VERSION = '0.4';
 
 =head1 NAME
 
