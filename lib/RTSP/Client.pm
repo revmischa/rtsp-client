@@ -3,6 +3,7 @@ package RTSP::Client;
 use Moose;
 use RTSP::Lite;
 use Carp qw/croak/;
+use Data::Dumper;
 
 our $VERSION = '0.4';
 
@@ -83,6 +84,8 @@ has client_port_range => (
 Path to the requested media stream
 
 e.g. /mpeg4/media.amp
+
+Specify this or use C<new_from_uri()>
 
 =cut
 has media_path => (
@@ -206,7 +209,7 @@ A SETUP request specifies how a single media stream must be transported. This mu
 
 =cut
 sub setup {
-    my ($self) = @_;
+    my ($self, $uri) = @_;
     
     # request transport
     my $proto = $self->transport_protocol;
@@ -218,7 +221,7 @@ sub setup {
         warn "no Transport header set in setup()";
     }
 
-    return unless $self->request('SETUP');
+    return unless $self->request('SETUP', $uri);
         
     # get session ID
     my $se = $self->_rtsp->get_header("Session");
@@ -275,9 +278,9 @@ A PLAY request will cause one or all media streams to be played. Play requests c
 
 =cut
 sub play {
-    my ($self) = @_;
+    my ($self, $uri) = @_;
     $self->add_session_header;
-    return $self->request('PLAY');
+    return $self->request('PLAY', $uri);
 }
 
 =item pause
@@ -286,9 +289,9 @@ A PAUSE request temporarily halts one or all media streams, so it can later be r
 
 =cut
 sub pause {
-    my ($self) = @_;
+    my ($self, $uri) = @_;
     $self->add_session_header;
-    return $self->request('PAUSE');
+    return $self->request('PAUSE', $uri);
 }
 
 =item record
@@ -297,9 +300,9 @@ The RECORD request can be used to send a stream to the server for storage.
 
 =cut
 sub record {
-    my ($self) = @_;
+    my ($self, $uri) = @_;
     $self->add_session_header;
-    return $self->request('RECORD');
+    return $self->request('RECORD', $uri);
 }
 
 =item teardown
@@ -308,16 +311,16 @@ A TEARDOWN request is used to terminate the session. It stops all media streams 
 
 =cut
 sub teardown {
-    my ($self) = @_;
+    my ($self, $uri) = @_;
     $self->add_session_header;
-    return $self->request('TEARDOWN');
+    return $self->request('TEARDOWN', $uri);
     $self->connected(0);
     $self->reset;
 }
 
 sub options {
     my ($self, $uri) = @_;
-    return $self->request('OPTIONS');
+    return $self->request('OPTIONS', $uri);
 }
 
 =item options_public
@@ -328,8 +331,8 @@ This returns an array of allowed public methods.
 
 =cut
 sub options_public {
-    my ($self) = @_;
-    return unless $self->options;
+    my ($self, $uri) = @_;
+    return unless $self->options($uri);
     my $public = $self->_rtsp->get_header('Public');
     return $public ? @$public : undef;
 }
@@ -342,8 +345,8 @@ This method returns the actual DESCRIBE content, as SDP data
 
 =cut
 sub describe {
-    my ($self) = @_;
-    return unless $self->request('DESCRIBE');
+    my ($self, $uri) = @_;
+    return unless $self->request('DESCRIBE', $uri);
     return $self->body;
 }
 
@@ -375,12 +378,15 @@ sub request {
     if (! $status || $status != 200) {
         return;
     }
-    
+
     if ($self->print_headers) {
         my @headers = $self->_rtsp->headers_array;
+        print STDERR "Response headers: " . Dumper(\@headers);
+    }
+
+    if ($self->debug) {
         my $body = $self->_rtsp->body;
-        print STDERR "$_\n" foreach @headers;
-        print STDERR "$body\n" if $body;
+        print STDERR "Response body: $body\n" if $body;
     }
     
     return 1;
